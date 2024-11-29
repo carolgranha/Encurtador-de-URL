@@ -16,6 +16,14 @@
         alert('o campo esta vazio'); // Exibe um alerta dizendo que o campo está vazio
       }
     }
+
+    function copyToClipboard() {
+      const link = document.getElementById('shortened_link');
+      navigator.clipboard.writeText(link.textContent)
+        .then(() => alert('Link copiado para a área de transferência!'))
+        .catch(() => alert('Falha ao copiar o link.'));
+
+    }
   </script>
 
   <style>
@@ -64,7 +72,56 @@
     button:hover {
       background-color: #45a049; /* Quando passar o mouse em cima, o botão fica um verde mais escuro */
     }
+    
+    /* Contêiner para o link encurtado */
+    .link-container {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #FFFFFF;
+      border-radius: 10px;
+      text-align: left;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 1s ease-in-out;
+      width: fit-content;
+      display: flex; /* Para alinhar o botão ao lado do link */
+      justify-content: space-between; /* Espaço entre o link e o botão */
+      align-items: center; /* Centralizar verticalmente */
+    }
+
+    .link-container h4 {
+      margin: 0;
+      font-size: 1.2em;
+      color: #005E80;
+      word-break: break-all; /* Quebra o link em caso de links muito longos */
+      flex-grow: 1; /* Faz o link ocupar mais espaço */
+    }
+
+    .link-container button {
+      background-color: #14cc03;
+      color: white;
+      font-size: 0.9em;
+      padding: 5px 15px;
+      border-radius: 5px;
+      margin-left: 10px; /* Espaço entre o botão e o link */
+    }
+
+    .link-container button:hover {
+      background-color: #10a803;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
   </style>
+  
   <?php
       $host = 'localhost';
       $db = 'link_shorter';
@@ -74,15 +131,30 @@
 
       $link = '';
       $original_link = '';
+
       function shortLink($size = 6) {
         return substr(str_shuffle("abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789"), 0, $size);
       }
+
+      function saveLink($original, $shorter, $connection) {
+        $stmp = $connection->prepare ("INSERT INTO links (original_link, short_code) VALUES (:original_link, :short_code)");
+        $stmp ->execute (['original_link'=>$original, 'short_code'=>$shorter]);
+      }
+
+      function findByLink($original, $connection) {
+        $data = $connection->query('SELECT * FROM links WHERE original_link = ' . $connection->quote($original));
+
+        return $data;
+      }
+
       
       if($_SERVER['REQUEST_METHOD'] === 'POST'){
         $original_link = $_POST['input_link'];
         $link = shortLink (6);
-        $stmp = $conn->prepare ("INSERT INTO links (original_link, short_code) VALUES (:original_link, :short_code) ");
-        $stmp ->execute (['original_link'=>$original_link, 'short_code'=>$link]);
+        $result = findByLink ($original_link, $conn);
+        // print_r($result);
+        saveLink ($original_link, $link, $conn);
+        
       }
       ?>
 </head>
@@ -100,16 +172,19 @@
       <button type="submit">Encurtar <i class="fas fa-arrow-right"></i></button>
       
     </form>
-    <h4>
-      <?php
-        if($link !== ''){
-          $dominio = $_SERVER['HTTP_HOST'];
-          echo ("http://" . $dominio . "/" . $link);
-
-          ## http://localhost/ADJASHDSJ
-        }
-      ?>
-    </h4>
+    <?php if ($link !== ''): ?>
+    <div class="link-container">
+      <h4 id="shortened_link">
+        <?php
+        $dominio = $_SERVER['HTTP_HOST'];
+        echo "http://" . $dominio . "/" . $link;
+        ?>
+      </h4>
+      <button onclick="copyToClipboard()">
+        <i class="fa-regular fa-copy"></i>
+      </button>
+    </div>
+    <?php endif; ?>
   </div>
 </body>
 
